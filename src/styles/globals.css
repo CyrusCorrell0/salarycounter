@@ -2,42 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Two-color system shared with cyruscorrell.com. Light is the exception,
+   dark is the default (see _document.tsx). */
+:root {
+  --background-rgb: 233 233 233;
+  --foreground-rgb: 15 15 15;
+}
+
+.dark {
+  --background-rgb: 15 15 15;
+  --foreground-rgb: 227 227 227;
+}
+
 @layer base {
-  html {
-    font-family: system-ui, sans-serif;
+  * {
+    @apply border-foreground/10;
   }
-  
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300;
+    @apply bg-background text-foreground font-serif antialiased transition-colors duration-300;
+  }
+
+  /* Wage input is a bare serif field; the browser spinner does not belong. */
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 }
 
 @layer components {
-  .stopwatch-display {
-    @apply text-7xl md:text-9xl lg:text-[8rem] font-mono font-bold text-gray-900 dark:text-white tracking-[0.1em] leading-none;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  /* Mono micro-label used for section indices and eyebrows. */
+  .mono-label {
+    @apply font-mono uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+  }
+
+  .pill-primary {
+    @apply rounded-full border border-foreground bg-foreground px-8 py-3 text-lg italic text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 md:text-xl;
+  }
+
+  .pill-outline {
+    @apply rounded-full border border-foreground/30 bg-background/20 px-8 py-3 text-lg italic backdrop-blur-sm transition-colors hover:border-foreground hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40 md:text-xl;
+  }
+
+  .figure {
+    @apply font-mono leading-none tracking-tight;
     font-variant-numeric: tabular-nums;
   }
-  
-  .earnings-display {
-    @apply text-5xl md:text-7xl font-bold text-earning-green dark:text-green-400 tracking-wide leading-none;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    font-variant-numeric: tabular-nums;
-  }
-  
-  .btn-primary {
-    @apply bg-earning-blue hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
-  }
-  
-  .btn-secondary {
-    @apply bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold py-3 px-6 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
-  }
-  
-  .btn-danger {
-    @apply bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
-  }
-  
-  .card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-lg border-0 dark:border dark:border-gray-700 transition-all duration-300;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }

@@ -3,18 +3,18 @@ module.exports = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        'earning-green': '#10b981',
-        'earning-blue': '#3b82f6',
+        background: 'rgb(var(--background-rgb) / <alpha-value>)',
+        foreground: 'rgb(var(--foreground-rgb) / <alpha-value>)',
       },
       fontFamily: {
-        'mono': ['Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
-      }
+        serif: ['var(--font-instrument-serif)', 'Georgia', 'serif'],
+        mono: ['var(--font-jetbrains-mono)', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
     },
   },
   plugins: [],

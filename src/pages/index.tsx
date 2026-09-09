@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Head from 'next/head'
-import { Play, Pause, RotateCcw, DollarSign, Moon, Sun } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 
 interface TimerState {
   isRunning: boolean
@@ -76,39 +76,58 @@ const calculateProjections = (hourlyWage: number) => {
   const daily = hourlyWage * 8 // 8 hour work day
   const weekly = daily * 5 // 5 work days
   const monthly = weekly * 4.33 // Average weeks per month
-  const yearly = monthly * 12 // Average weeks per month
-  
-  return { daily, weekly, monthly, yearly}
+  const yearly = monthly * 12
+
+  return { daily, weekly, monthly, yearly }
+}
+
+// Section index + eyebrow, matching the "design engineer" indices on cyruscorrell.com.
+function Section({
+  index,
+  label,
+  children
+}: {
+  index: string
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="border-t border-foreground/15 py-12 md:py-16">
+      <p className="mono-label mb-8 text-foreground/50">
+        {index} <span className="mx-2">&mdash;</span> {label}
+      </p>
+      {children}
+    </section>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between border-t border-foreground/15 py-3">
+      <span className="text-lg opacity-80">{label}</span>
+      <span className="figure text-lg">{value}</span>
+    </div>
+  )
 }
 
 export default function Home() {
   const [hourlyWage, setHourlyWage] = useState<number>(0)
   const [wageInput, setWageInput] = useState<string>('')
-  const [darkMode, setDarkMode] = useState<boolean>(false)
+  const [darkMode, setDarkMode] = useState<boolean>(true)
   const [timer, setTimer] = useState<TimerState>({
     isRunning: false,
     elapsedMs: 0,
     startTime: null
   })
 
-  // Initialize dark mode from localStorage
+  // Dark is the default; only an explicit saved preference switches to light.
   useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode')
-    if (savedDarkMode) {
-      setDarkMode(savedDarkMode === 'true')
-    } else {
-      // Default to dark mode
-      setDarkMode(true)
-    }
+    const saved = localStorage.getItem('darkMode')
+    if (saved !== null) setDarkMode(saved === 'true')
   }, [])
 
-  // Apply dark mode class to HTML element
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    document.documentElement.classList.toggle('dark', darkMode)
     localStorage.setItem('darkMode', darkMode.toString())
   }, [darkMode])
 
@@ -128,7 +147,8 @@ export default function Home() {
     return () => cancelAnimationFrame(frame)
   }, [timer.isRunning, timer.startTime])
 
-  const handleSetWage = () => {
+  const handleSetWage = (e: React.FormEvent) => {
+    e.preventDefault()
     const wage = parseFloat(wageInput)
     if (!isNaN(wage) && wage > 0) {
       setHourlyWage(wage)
@@ -168,220 +188,163 @@ export default function Home() {
   const elon = compareToElon(currentEarnings)
   const elonEarnedMeanwhile = ELON_PER_SECOND * (timer.elapsedMs / 1000)
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode)
-  }
-
   return (
     <>
       <Head>
         <title>Live Salary Stopwatch</title>
         <meta name="description" content="Calculate your real-time earnings with a live salary stopwatch" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 transition-colors duration-300">
-        <div className="max-w-4xl mx-auto">
-          {/* Header with Dark Mode Toggle */}
-          <div className="flex justify-between items-start mb-8">
-            <div className="text-center flex-1">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <DollarSign className="w-10 h-10 text-earning-green dark:text-green-400" />
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Live Salary Stopwatch</h1>
-              </div>
-              <p className="text-lg text-gray-600 dark:text-gray-400">Track your real-time earnings as you work</p>
+      <main className="min-h-screen px-6 py-12 md:py-20">
+        <div className="mx-auto max-w-3xl">
+          {/* Header */}
+          <header className="mb-16 flex items-start justify-between gap-6 md:mb-24">
+            <div>
+              <p className="mono-label mb-6 text-foreground/50">Salary counter</p>
+              <h1 className="text-5xl font-normal leading-[0.95] sm:text-7xl md:text-8xl">
+                Live Salary
+                <br />
+                <span className="italic">Stopwatch</span>
+              </h1>
+              <p className="mt-6 max-w-md text-xl italic opacity-70">
+                Watch what your time is worth, as you spend it.
+              </p>
             </div>
-            
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={toggleDarkMode}
-              className="p-3 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-all duration-200"
-              aria-label="Toggle dark mode"
-            >
-              {darkMode ? (
-                <Sun className="w-6 h-6 text-yellow-500" />
-              ) : (
-                <Moon className="w-6 h-6 text-gray-600" />
-              )}
-            </button>
-          </div>
 
-          {/* Wage Input Section */}
-          <div className="card p-8 mb-8">
-            <div className="flex flex-col sm:flex-row gap-4 items-end">
-              <div className="flex-1">
-                <label htmlFor="wage" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Hourly Wage ($/hr)
-                </label>
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="shrink-0 p-2 transition-opacity hover:opacity-70"
+              aria-label="Toggle theme"
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+          </header>
+
+          {/* 01 Wage */}
+          <Section index="01" label="Wage">
+            <form onSubmit={handleSetWage} className="flex flex-col gap-6 sm:flex-row sm:items-end">
+              <label htmlFor="wage" className="flex flex-1 items-baseline gap-2 border-b border-foreground/30 pb-2 transition-colors focus-within:border-foreground">
+                <span className="text-3xl opacity-50 md:text-4xl">$</span>
                 <input
                   type="number"
                   id="wage"
                   value={wageInput}
                   onChange={(e) => setWageInput(e.target.value)}
-                  placeholder="Enter your hourly wage"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-earning-blue dark:focus:ring-blue-400 focus:border-transparent text-lg placeholder-gray-400 dark:placeholder-gray-500 transition-all duration-200"
+                  placeholder="0.00"
+                  className="figure w-full bg-transparent text-3xl outline-none placeholder:text-foreground/30 md:text-4xl"
                   min="0"
                   step="0.01"
+                  inputMode="decimal"
                 />
-              </div>
+                <span className="text-xl italic opacity-50">/ hr</span>
+              </label>
               <button
-                onClick={handleSetWage}
-                className="btn-primary whitespace-nowrap"
+                type="submit"
+                className="pill-primary whitespace-nowrap"
                 disabled={!wageInput || isNaN(parseFloat(wageInput))}
               >
-                Set Wage
+                Set wage
+              </button>
+            </form>
+            <p className="mt-6 text-lg italic opacity-70">
+              {hourlyWage > 0
+                ? <>Counting at <span className="figure not-italic">{formatCurrency(hourlyWage)}</span> per hour.</>
+                : 'Set an hourly wage to start the clock.'}
+            </p>
+          </Section>
+
+          {/* 02 Time */}
+          <Section index="02" label="Time">
+            <div className="figure text-6xl sm:text-8xl md:text-[7.5rem]">
+              {formatTime(elapsedSeconds)}
+            </div>
+
+            <div className="mt-10 flex flex-wrap gap-4">
+              {!timer.isRunning ? (
+                <button
+                  onClick={handleStart}
+                  className="pill-primary min-w-[9rem]"
+                  disabled={hourlyWage === 0}
+                >
+                  {timer.elapsedMs > 0 ? 'Resume' : 'Start'}
+                </button>
+              ) : (
+                <button onClick={handlePause} className="pill-outline min-w-[9rem]">
+                  Pause
+                </button>
+              )}
+              <button
+                onClick={handleReset}
+                className="pill-outline"
+                disabled={timer.elapsedMs === 0}
+              >
+                Reset
               </button>
             </div>
-            {hourlyWage > 0 && (
-              <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-                Current wage: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(hourlyWage)}/hr</span>
-              </p>
-            )}
-          </div>
+          </Section>
 
-          {/* Main Dashboard */}
-          <div className="space-y-8">
-            {/* Timer and Controls Section */}
-            <div className="card p-8">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-8 text-center">Live Salary Tracker</h2>
-              
-              {/* Stopwatch Display */}
-              <div className="text-center mb-8">
-                <div className="mb-8 py-8 px-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl">
-                  <div className="stopwatch-display">
-                    {formatTime(elapsedSeconds)}
-                  </div>
-                </div>
-                
-                {/* Control Buttons */}
-                <div className="flex justify-center gap-4 flex-wrap">
-                  {!timer.isRunning ? (
-                    <button
-                      onClick={handleStart}
-                      className="btn-primary flex items-center gap-2 min-w-[120px] justify-center"
-                      disabled={hourlyWage === 0}
-                    >
-                      <Play className="w-5 h-5" />
-                      {timer.elapsedMs > 0 ? 'Resume' : 'Start'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handlePause}
-                      className="btn-secondary flex items-center gap-2 min-w-[120px] justify-center"
-                    >
-                      <Pause className="w-5 h-5" />
-                      Pause
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={handleReset}
-                    className="btn-danger flex items-center gap-2 min-w-[120px] justify-center"
-                  >
-                    <RotateCcw className="w-5 h-5" />
-                    Reset
-                  </button>
-                </div>
-
-                {hourlyWage === 0 && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                    Please set your hourly wage to start the timer
-                  </p>
-                )}
-              </div>
+          {/* 03 Earnings */}
+          <Section index="03" label="Earnings">
+            <div className="figure text-6xl sm:text-8xl md:text-[7.5rem]">
+              {earningsParts.dollars}
+              <span className="ml-2 text-2xl opacity-40 sm:text-4xl md:text-5xl">{earningsParts.subCents}</span>
             </div>
 
-            {/* Earnings Section */}
-            <div className="card p-8">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-8 text-center">Current Earnings & Projections</h2>
-              
-              <div className="text-center mb-8">
-                <div className="mb-6 py-6 px-4 bg-green-50 dark:bg-green-900/20 rounded-2xl">
-                  <div className="earnings-display">
-                    {earningsParts.dollars}
-                    <span className="text-2xl md:text-4xl opacity-40 ml-1">{earningsParts.subCents}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <span>Elapsed time:</span>
-                    <span className="font-medium text-gray-900 dark:text-white font-mono">{formatTime(elapsedSeconds)}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span>Hourly wage:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(hourlyWage)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Projections */}
+            <div className="mt-10">
+              <Row label="Elapsed" value={formatTime(elapsedSeconds)} />
+              <Row label="Hourly" value={formatCurrency(hourlyWage)} />
               {hourlyWage > 0 && (
-                <div className="border-t border-gray-200 dark:border-gray-600 pt-6">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Earnings Projections</h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-                      <span className="text-gray-600 dark:text-gray-400">Daily (8 hours):</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(projections.daily)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-                      <span className="text-gray-600 dark:text-gray-400">Weekly (40 hours):</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(projections.weekly)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-                      <span className="text-gray-600 dark:text-gray-400">Monthly (173 hours):</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(projections.monthly)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
-                      <span className="text-gray-600 dark:text-gray-400">Yearly:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(projections.yearly)}</span>
-                    </div>
-                  </div>
-                </div>
+                <>
+                  <Row label="Daily, 8 hours" value={formatCurrency(projections.daily)} />
+                  <Row label="Weekly, 40 hours" value={formatCurrency(projections.weekly)} />
+                  <Row label="Monthly, 173 hours" value={formatCurrency(projections.monthly)} />
+                  <Row label="Yearly" value={formatCurrency(projections.yearly)} />
+                </>
               )}
             </div>
+          </Section>
 
-            {/* Elon Comparison */}
-            <div className="card p-8">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 text-center">How Long Would This Take Elon?</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-8">
-                Elon Musk&apos;s net worth grew by about {formatCurrency(ELON_HOURLY)} per hour in 2025
-              </p>
+          {/* 04 Elon */}
+          <Section index="04" label="Elon Musk">
+            <h2 className="text-3xl font-normal leading-tight sm:text-4xl">
+              How long would this take Elon?
+            </h2>
+            <p className="mt-3 max-w-xl text-lg italic opacity-70">
+              His net worth grew by about {formatCurrency(ELON_HOURLY)} per hour in 2025.
+            </p>
 
-              <div className="text-center mb-6 py-6 px-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl">
-                <div className="text-5xl md:text-7xl font-bold font-mono text-gray-900 dark:text-white leading-none tabular-nums">
-                  {formatDuration(elon.seconds)}
-                </div>
-                <p className="mt-4 text-gray-600 dark:text-gray-400">
-                  to earn your <span className="font-semibold text-earning-green dark:text-green-400">{earningsParts.dollars}</span>
-                </p>
+            <div className="figure mt-10 text-5xl sm:text-7xl md:text-8xl">
+              {formatDuration(elon.seconds)}
+            </div>
+            <p className="mt-4 text-xl italic opacity-70">
+              to earn your <span className="figure not-italic opacity-100">{earningsParts.dollars}</span>
+            </p>
+
+            <div className="mt-10">
+              <div className="mb-3 flex justify-between">
+                <span className="mono-label text-foreground/50">
+                  {Math.round(elon.fraction * 100)}% of {elon.moment.label}
+                </span>
+                <span className="mono-label text-foreground/50">{formatDuration(elon.moment.seconds)}</span>
               </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                  <span>{Math.round(elon.fraction * 100)}% of {elon.moment.label}</span>
-                  <span className="font-mono">{formatDuration(elon.moment.seconds)}</span>
-                </div>
-                <div className="h-4 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-earning-green dark:bg-green-400"
-                    style={{ width: `${elon.fraction * 100}%`, minWidth: elon.seconds > 0 ? '3px' : 0 }}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Elon earned during your session:</span>
-                <span className="font-medium text-gray-900 dark:text-white tabular-nums">{formatCurrency(elonEarnedMeanwhile)}</span>
+              <div className="h-1 w-full overflow-hidden bg-foreground/10">
+                <div
+                  className="h-full bg-foreground"
+                  style={{ width: `${elon.fraction * 100}%`, minWidth: elon.seconds > 0 ? '2px' : 0 }}
+                />
               </div>
             </div>
-          </div>
+
+            <div className="mt-10">
+              <Row label="Elon earned during your session" value={formatCurrency(elonEarnedMeanwhile)} />
+            </div>
+          </Section>
 
           {/* Footer */}
-          <div className="text-center mt-12 text-sm text-gray-500 dark:text-gray-400">
-            <p>Your earnings are calculated in real-time based on elapsed time</p>
-          </div>
+          <footer className="border-t border-foreground/15 pt-8">
+            <p className="mono-label text-foreground/40">Earnings update every frame from elapsed time</p>
+          </footer>
         </div>
       </main>
     </>
