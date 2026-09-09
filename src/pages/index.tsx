@@ -4,9 +4,26 @@ import { Play, Pause, RotateCcw, DollarSign, Moon, Sun } from 'lucide-react'
 
 interface TimerState {
   isRunning: boolean
-  elapsedSeconds: number
+  elapsedMs: number
   startTime: number | null
 }
+
+// Elon Musk's net worth grew by roughly $40M per hour across 2025.
+const ELON_HOURLY = 40_000_000
+const ELON_PER_SECOND = ELON_HOURLY / 3600
+
+// Human-scale moments, in seconds, that Elon's earning time is measured against.
+const MOMENTS: { label: string; seconds: number }[] = [
+  { label: 'a blink', seconds: 0.15 },
+  { label: 'a heartbeat', seconds: 0.8 },
+  { label: 'a deep breath', seconds: 4 },
+  { label: 'tying your shoes', seconds: 20 },
+  { label: 'brushing your teeth', seconds: 120 },
+  { label: 'a pop song', seconds: 200 },
+  { label: 'a coffee break', seconds: 900 },
+  { label: 'a lunch break', seconds: 3600 },
+  { label: 'an 8 hour shift', seconds: 28800 },
+]
 
 const formatTime = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600)
@@ -27,16 +44,41 @@ const formatCurrency = (amount: number): string => {
   }).format(amount)
 }
 
-const calculateEarnings = (hourlyWage: number, elapsedSeconds: number): number => {
-  return (hourlyWage / 3600) * elapsedSeconds
+// Splits an amount into its cent-precision currency string and the next two
+// sub-cent digits, so the display can move continuously at any wage.
+const splitCurrency = (amount: number): { dollars: string; subCents: string } => {
+  const hundredths = Math.floor(amount * 10000)
+  return {
+    dollars: formatCurrency(Math.floor(hundredths / 100) / 100),
+    subCents: (hundredths % 100).toString().padStart(2, '0')
+  }
+}
+
+const formatDuration = (seconds: number): string => {
+  if (seconds < 0.01) return `${(seconds * 1000).toFixed(2)} ms`
+  if (seconds < 1) return `${(seconds * 1000).toFixed(seconds < 0.1 ? 1 : 0)} ms`
+  if (seconds < 60) return `${seconds.toFixed(2)} s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min ${Math.floor(seconds % 60)} s`
+  return `${Math.floor(seconds / 3600)} h ${Math.floor((seconds % 3600) / 60)} min`
+}
+
+const calculateEarnings = (hourlyWage: number, elapsedMs: number): number => {
+  return (hourlyWage / 3_600_000) * elapsedMs
+}
+
+const compareToElon = (earnings: number) => {
+  const seconds = earnings / ELON_PER_SECOND
+  const moment = MOMENTS.find(m => m.seconds >= seconds) ?? MOMENTS[MOMENTS.length - 1]
+  return { seconds, moment, fraction: Math.min(seconds / moment.seconds, 1) }
 }
 
 const calculateProjections = (hourlyWage: number) => {
   const daily = hourlyWage * 8 // 8 hour work day
   const weekly = daily * 5 // 5 work days
   const monthly = weekly * 4.33 // Average weeks per month
+  const yearly = monthly * 12 // Average weeks per month
   
-  return { daily, weekly, monthly }
+  return { daily, weekly, monthly, yearly}
 }
 
 export default function Home() {
@@ -45,7 +87,7 @@ export default function Home() {
   const [darkMode, setDarkMode] = useState<boolean>(false)
   const [timer, setTimer] = useState<TimerState>({
     isRunning: false,
-    elapsedSeconds: 0,
+    elapsedMs: 0,
     startTime: null
   })
 
@@ -70,25 +112,20 @@ export default function Home() {
     localStorage.setItem('darkMode', darkMode.toString())
   }, [darkMode])
 
-  // Timer effect - runs every second when timer is active
+  // Timer effect - re-derives elapsed time from the wall clock every frame,
+  // so the display moves smoothly and never drifts after a background tab.
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
+    if (!timer.isRunning || timer.startTime === null) return
 
-    if (timer.isRunning && timer.startTime) {
-      interval = setInterval(() => {
-        const now = Date.now()
-        const elapsed = Math.floor((now - timer.startTime!) / 1000)
-        
-        setTimer(prev => ({
-          ...prev,
-          elapsedSeconds: elapsed
-        }))
-      }, 1000)
+    const startTime = timer.startTime
+    let frame = 0
+    const tick = () => {
+      setTimer(prev => ({ ...prev, elapsedMs: Date.now() - startTime }))
+      frame = requestAnimationFrame(tick)
     }
+    frame = requestAnimationFrame(tick)
 
-    return () => {
-      if (interval) clearInterval(interval)
-    }
+    return () => cancelAnimationFrame(frame)
   }, [timer.isRunning, timer.startTime])
 
   const handleSetWage = () => {
@@ -102,8 +139,8 @@ export default function Home() {
     if (!timer.isRunning) {
       setTimer({
         isRunning: true,
-        elapsedSeconds: timer.elapsedSeconds,
-        startTime: Date.now() - (timer.elapsedSeconds * 1000)
+        elapsedMs: timer.elapsedMs,
+        startTime: Date.now() - timer.elapsedMs
       })
     }
   }
@@ -119,13 +156,17 @@ export default function Home() {
   const handleReset = () => {
     setTimer({
       isRunning: false,
-      elapsedSeconds: 0,
+      elapsedMs: 0,
       startTime: null
     })
   }
 
-  const currentEarnings = calculateEarnings(hourlyWage, timer.elapsedSeconds)
+  const elapsedSeconds = Math.floor(timer.elapsedMs / 1000)
+  const currentEarnings = calculateEarnings(hourlyWage, timer.elapsedMs)
+  const earningsParts = splitCurrency(currentEarnings)
   const projections = calculateProjections(hourlyWage)
+  const elon = compareToElon(currentEarnings)
+  const elonEarnedMeanwhile = ELON_PER_SECOND * (timer.elapsedMs / 1000)
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)
@@ -209,7 +250,7 @@ export default function Home() {
               <div className="text-center mb-8">
                 <div className="mb-8 py-8 px-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl">
                   <div className="stopwatch-display">
-                    {formatTime(timer.elapsedSeconds)}
+                    {formatTime(elapsedSeconds)}
                   </div>
                 </div>
                 
@@ -222,7 +263,7 @@ export default function Home() {
                       disabled={hourlyWage === 0}
                     >
                       <Play className="w-5 h-5" />
-                      {timer.elapsedSeconds > 0 ? 'Resume' : 'Start'}
+                      {timer.elapsedMs > 0 ? 'Resume' : 'Start'}
                     </button>
                   ) : (
                     <button
@@ -258,14 +299,15 @@ export default function Home() {
               <div className="text-center mb-8">
                 <div className="mb-6 py-6 px-4 bg-green-50 dark:bg-green-900/20 rounded-2xl">
                   <div className="earnings-display">
-                    {formatCurrency(currentEarnings)}
+                    {earningsParts.dollars}
+                    <span className="text-2xl md:text-4xl opacity-40 ml-1">{earningsParts.subCents}</span>
                   </div>
                 </div>
                 
                 <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/30 rounded-lg p-4">
                   <div className="flex justify-between items-center">
                     <span>Elapsed time:</span>
-                    <span className="font-medium text-gray-900 dark:text-white font-mono">{formatTime(timer.elapsedSeconds)}</span>
+                    <span className="font-medium text-gray-900 dark:text-white font-mono">{formatTime(elapsedSeconds)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Hourly wage:</span>
@@ -291,9 +333,48 @@ export default function Home() {
                       <span className="text-gray-600 dark:text-gray-400">Monthly (173 hours):</span>
                       <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(projections.monthly)}</span>
                     </div>
+                    <div className="flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+                      <span className="text-gray-600 dark:text-gray-400">Yearly:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(projections.yearly)}</span>
+                    </div>
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Elon Comparison */}
+            <div className="card p-8">
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2 text-center">How Long Would This Take Elon?</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-8">
+                Elon Musk&apos;s net worth grew by about {formatCurrency(ELON_HOURLY)} per hour in 2025
+              </p>
+
+              <div className="text-center mb-6 py-6 px-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl">
+                <div className="text-5xl md:text-7xl font-bold font-mono text-gray-900 dark:text-white leading-none tabular-nums">
+                  {formatDuration(elon.seconds)}
+                </div>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">
+                  to earn your <span className="font-semibold text-earning-green dark:text-green-400">{earningsParts.dollars}</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                  <span>{Math.round(elon.fraction * 100)}% of {elon.moment.label}</span>
+                  <span className="font-mono">{formatDuration(elon.moment.seconds)}</span>
+                </div>
+                <div className="h-4 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-earning-green dark:bg-green-400"
+                    style={{ width: `${elon.fraction * 100}%`, minWidth: elon.seconds > 0 ? '3px' : 0 }}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-between items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Elon earned during your session:</span>
+                <span className="font-medium text-gray-900 dark:text-white tabular-nums">{formatCurrency(elonEarnedMeanwhile)}</span>
+              </div>
             </div>
           </div>
 
